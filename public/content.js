@@ -317,32 +317,57 @@ async function runActionByAI(action, selectedText) {
         const element = popupContext.activeElement;
         const start = popupContext.selectionStart;
         const end = popupContext.selectionEnd;
-        
-        if (start !== null && end !== null) {
+          if (start !== null && end !== null) {
             // Replace selected text in input field/textarea
             const currentValue = element.value;
             const newValue = currentValue.substring(0, start) + aiResponseInText + currentValue.substring(end);
             element.value = newValue;
             
+            // Trigger input event to notify of the change
+            element.dispatchEvent(new Event('input', { bubbles: true }));
+            
             // Move cursor to end of inserted text
             const newCursorPosition = start + aiResponseInText.length;
             element.setSelectionRange(newCursorPosition, newCursorPosition);
             element.focus();
-        }
-    } else if (popupContext && popupContext.windowSelection) {
+        }} else if (popupContext && popupContext.windowSelection) {
         // Handle regular text selection using stored range
         const range = popupContext.windowSelection;
         range.deleteContents();
-        const newNode = document.createTextNode(aiResponseInText);
-        range.insertNode(newNode);
+        
+        // Preserve formatting by handling line breaks and creating appropriate nodes
+        const lines = aiResponseInText.split('\n');
+        let lastNode = null;
+        
+        for (let i = 0; i < lines.length; i++) {
+            const line = lines[i];
+            
+            // Create text node for the line content
+            if (line.length > 0) {
+                const textNode = document.createTextNode(line);
+                range.insertNode(textNode);
+                range.setStartAfter(textNode);
+                lastNode = textNode;
+            }
+            
+            // Add line break if not the last line
+            if (i < lines.length - 1) {
+                const brNode = document.createElement('br');
+                range.insertNode(brNode);
+                range.setStartAfter(brNode);
+                lastNode = brNode;
+            }
+        }
         
         // Move the cursor to the end of the inserted text
-        range.setStartAfter(newNode);
+        if (lastNode) {
+            range.setStartAfter(lastNode);
+        }
         range.collapse(true);
         const selection = window.getSelection();
         selection.removeAllRanges();
         selection.addRange(range);
-    }    console.log('Text replaced with AI response:', aiResponseInText);
+    }console.log('Text replaced with AI response:', aiResponseInText);
     
     // Hide skeleton animation and show success feedback
     hideSkeletonAnimation();
