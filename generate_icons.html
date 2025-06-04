@@ -1,0 +1,188 @@
+<!DOCTYPE html>
+<html>
+<head>
+    <title>Icon Generator</title>
+    <style>
+        body {
+            font-family: Arial, sans-serif;
+            padding: 20px;
+            background: #f0f0f0;
+        }
+        .icon-container {
+            display: flex;
+            gap: 20px;
+            flex-wrap: wrap;
+            margin: 20px 0;
+        }
+        .icon-box {
+            text-align: center;
+            padding: 10px;
+            background: white;
+            border-radius: 8px;
+            box-shadow: 0 2px 4px rgba(0,0,0,0.1);
+        }
+        canvas {
+            border: 1px solid #ddd;
+            margin: 10px 0;
+        }
+        button {
+            background: #4CAF50;
+            color: white;
+            border: none;
+            padding: 8px 16px;
+            border-radius: 4px;
+            cursor: pointer;
+            margin: 5px;
+        }
+        button:hover {
+            background: #45a049;
+        }
+        .instructions {
+            background: #e7f3ff;
+            padding: 15px;
+            border-radius: 8px;
+            margin-bottom: 20px;
+        }
+    </style>
+</head>
+<body>
+    <h1>AI Text Assistant - Icon Generator</h1>
+    
+    <div class="instructions">
+        <h3>Instructions:</h3>
+        <p>1. Click "Generate All Icons" to create all required sizes</p>
+        <p>2. Right-click on each canvas and select "Save image as..."</p>
+        <p>3. Save each icon with the correct filename in the public/icons/ folder:</p>
+        <ul>
+            <li>16x16 → icon16.png</li>
+            <li>32x32 → icon32.png</li>
+            <li>48x48 → icon48.png</li>
+            <li>128x128 → icon128.png</li>
+        </ul>
+    </div>
+    
+    <button onclick="generateAllIcons()">Generate All Icons</button>
+    <button onclick="downloadAllIcons()">Download All Icons</button>
+    
+    <div class="icon-container">
+        <div class="icon-box">
+            <h4>16x16</h4>
+            <canvas id="icon16" width="16" height="16"></canvas>
+            <br>
+            <button onclick="downloadIcon('icon16', 'icon16.png')">Download</button>
+        </div>
+        
+        <div class="icon-box">
+            <h4>32x32</h4>
+            <canvas id="icon32" width="32" height="32"></canvas>
+            <br>
+            <button onclick="downloadIcon('icon32', 'icon32.png')">Download</button>
+        </div>
+        
+        <div class="icon-box">
+            <h4>48x48</h4>
+            <canvas id="icon48" width="48" height="48"></canvas>
+            <br>
+            <button onclick="downloadIcon('icon48', 'icon48.png')">Download</button>
+        </div>
+        
+        <div class="icon-box">
+            <h4>128x128</h4>
+            <canvas id="icon128" width="128" height="128"></canvas>
+            <br>
+            <button onclick="downloadIcon('icon128', 'icon128.png')">Download</button>
+        </div>
+    </div>
+
+    <script>
+        function createIcon(canvas, size) {
+            const ctx = canvas.getContext('2d');
+            const centerX = size / 2;
+            const centerY = size / 2;
+            
+            // Clear canvas
+            ctx.clearRect(0, 0, size, size);
+            
+            // Create gradient background
+            const gradient = ctx.createLinearGradient(0, 0, size, size);
+            gradient.addColorStop(0, '#667eea');
+            gradient.addColorStop(1, '#764ba2');
+            
+            // Draw background circle
+            ctx.fillStyle = gradient;
+            ctx.beginPath();
+            ctx.arc(centerX, centerY, size * 0.45, 0, 2 * Math.PI);
+            ctx.fill();
+            
+            // Add inner circle with lighter color
+            const innerGradient = ctx.createRadialGradient(centerX, centerY, 0, centerX, centerY, size * 0.3);
+            innerGradient.addColorStop(0, 'rgba(255, 255, 255, 0.3)');
+            innerGradient.addColorStop(1, 'rgba(255, 255, 255, 0.1)');
+            
+            ctx.fillStyle = innerGradient;
+            ctx.beginPath();
+            ctx.arc(centerX, centerY, size * 0.35, 0, 2 * Math.PI);
+            ctx.fill();
+            
+            // Draw AI text symbol
+            ctx.fillStyle = '#ffffff';
+            ctx.textAlign = 'center';
+            ctx.textBaseline = 'middle';
+            
+            if (size >= 32) {
+                // For larger icons, draw "AI" text
+                ctx.font = `bold ${size * 0.3}px Arial`;
+                ctx.fillText('AI', centerX, centerY);
+                
+                // Add sparkle effect for larger icons
+                if (size >= 48) {
+                    ctx.fillStyle = '#ffff99';
+                    // Top sparkle
+                    ctx.beginPath();
+                    ctx.arc(centerX + size * 0.2, centerY - size * 0.2, size * 0.05, 0, 2 * Math.PI);
+                    ctx.fill();
+                    
+                    // Bottom sparkle
+                    ctx.beginPath();
+                    ctx.arc(centerX - size * 0.15, centerY + size * 0.25, size * 0.03, 0, 2 * Math.PI);
+                    ctx.fill();
+                }
+            } else {
+                // For 16x16, just draw a simple "A" or dot
+                ctx.font = `bold ${size * 0.5}px Arial`;
+                ctx.fillText('A', centerX, centerY);
+            }
+        }
+        
+        function generateAllIcons() {
+            const sizes = [16, 32, 48, 128];
+            sizes.forEach(size => {
+                const canvas = document.getElementById(`icon${size}`);
+                createIcon(canvas, size);
+            });
+        }
+        
+        function downloadIcon(canvasId, filename) {
+            const canvas = document.getElementById(canvasId);
+            const link = document.createElement('a');
+            link.download = filename;
+            link.href = canvas.toDataURL('image/png');
+            link.click();
+        }
+        
+        function downloadAllIcons() {
+            const sizes = [16, 32, 48, 128];
+            sizes.forEach(size => {
+                setTimeout(() => {
+                    downloadIcon(`icon${size}`, `icon${size}.png`);
+                }, size * 10); // Stagger downloads
+            });
+        }
+        
+        // Generate icons on page load
+        window.onload = function() {
+            generateAllIcons();
+        };
+    </script>
+</body>
+</html>

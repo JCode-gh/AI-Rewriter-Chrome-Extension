@@ -1,0 +1,74 @@
+{
+    "manifest_version": 3,
+    "name": "AI Text Assistant - Smart Text Enhancement",
+    "short_name": "AI Text Assistant",
+    "version": "1.0.0",
+    "description": "Transform any text with AI-powered features: rephrase, make professional, summarize, and copy. Works on any webpage with beautiful popup interface and selection tools.",
+    "author": "Your Name",
+    "homepage_url": "https://github.com/yourusername/ai-text-assistant",
+    
+    "action": {
+        "default_popup": "popup.html",
+        "default_title": "AI Text Assistant",
+        "default_icon": {
+            "16": "icons/icon16.png",
+            "32": "icons/icon32.png",
+            "48": "icons/icon48.png",
+            "128": "icons/icon128.png"
+        }
+    },
+    
+    "icons": {
+        "16": "icons/icon16.png",
+        "32": "icons/icon32.png",
+        "48": "icons/icon48.png",
+        "128": "icons/icon128.png"
+    },
+    
+    "background": {
+        "service_worker": "background.js"
+    },
+    
+    "content_scripts": [
+        {
+            "matches": ["<all_urls>"],
+            "js": ["content.js"],
+            "run_at": "document_end",
+            "all_frames": false
+        }
+    ],
+    
+    "permissions": [
+        "contextMenus",
+        "scripting", 
+        "storage",
+        "activeTab"
+    ],
+    
+    "host_permissions": [
+        "https://text.pollinations.ai/*"
+    ],
+    
+    "web_accessible_resources": [
+        {
+            "resources": ["icons/*.png"],
+            "matches": ["<all_urls>"]
+        }
+    ],
+    
+    "minimum_chrome_version": "88",
+    
+    "content_security_policy": {
+        "extension_pages": "script-src 'self'; object-src 'self'; connect-src 'self' https://text.pollinations.ai;"
+    },
+    
+    "commands": {
+        "_execute_action": {
+            "suggested_key": {
+                "default": "Ctrl+Shift+A",
+                "mac": "Command+Shift+A"
+            },
+            "description": "Open AI Text Assistant popup"
+        }
+    }
+}
