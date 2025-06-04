@@ -37,8 +37,7 @@
             "all_frames": false
         }
     ],
-    
-    "permissions": [
+      "permissions": [
         "contextMenus",
         "scripting", 
         "storage",

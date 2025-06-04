@@ -5,9 +5,10 @@
     return;
   }
   window.textSelectionPopupInjected = true;
-
   let textSelectionPopup = null;
   let popupContext = null; // Store context about where popup was created
+  let chatInterface = null; // Store chat interface
+  let speechRecognition = null; // Store speech recognition instance
 
 // Create the popup HTML structure
 function createPopup() {
@@ -71,8 +72,7 @@ function createPopup() {
     position: relative;
   `;
     // Style the buttons with modern, professional design
-  const buttons = popup.querySelectorAll('.popup-btn');
-  const buttonColors = [
+  const buttons = popup.querySelectorAll('.popup-btn');  const buttonColors = [
     { bg: 'rgba(255, 255, 255, 0.9)', hover: 'rgba(255, 255, 255, 1)', text: '#374151' }, // Copy - Clean white
     { bg: 'rgba(255, 255, 255, 0.15)', hover: 'rgba(255, 255, 255, 0.25)', text: '#fff' }, // Rephrase - Subtle glass
     { bg: 'rgba(255, 255, 255, 0.15)', hover: 'rgba(255, 255, 255, 0.25)', text: '#fff' }, // Professional - Subtle glass
@@ -154,8 +154,609 @@ function createPopup() {
     `;
     document.head.appendChild(style);
   }
+    document.body.appendChild(popup);  return popup;
+}
+
+// Create the chat interface
+function createChatInterface() {
+  // Remove any existing chat interface first
+  const existingChat = document.getElementById('ai-chat-interface');
+  if (existingChat) {
+    existingChat.remove();
+  }
   
-  document.body.appendChild(popup);  return popup;
+  const chatInterface = document.createElement('div');
+  chatInterface.id = 'ai-chat-interface';
+  chatInterface.innerHTML = `
+    <div class="chat-container">
+      <div class="chat-header">
+        <div class="chat-title">
+          <span class="chat-icon">🤖</span>
+          AI Chat Assistant
+        </div>
+        <button id="chat-close-btn" class="chat-close">×</button>
+      </div>
+      <div class="chat-messages" id="chat-messages">
+        <div class="welcome-message">
+          <div class="ai-message">
+            <span class="ai-avatar">🤖</span>            <div class="message-content">
+              <p>Hi! I'm your AI assistant. Ask me anything you'd like to know!</p>
+              <p><small>💡 Tip: Use the microphone button for voice input or press CTRL+I anytime to open this chat</small></p>
+            </div>
+          </div>
+        </div>
+      </div>
+      <div class="chat-input-container">
+        <div class="input-wrapper">
+          <input type="text" id="chat-input" placeholder="Ask me anything..." />
+          <button id="voice-btn" class="voice-btn" title="Voice input">🎤</button>
+          <button id="send-btn" class="send-btn" title="Send message">➤</button>
+        </div>
+      </div>
+    </div>
+  `;
+  
+  // Add chat interface styles
+  chatInterface.style.cssText = `
+    position: fixed;
+    top: 50%;
+    left: 50%;
+    transform: translate(-50%, -50%);
+    z-index: 10001;
+    width: 400px;
+    max-width: 90vw;
+    height: 500px;
+    max-height: 80vh;
+    background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+    border-radius: 20px;
+    box-shadow: 0 25px 50px rgba(0,0,0,0.25), 0 8px 16px rgba(0,0,0,0.15);
+    font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, 'Helvetica Neue', Arial, sans-serif;
+    display: none;
+    backdrop-filter: blur(20px);
+    animation: chatSlideIn 0.4s cubic-bezier(0.4, 0, 0.2, 1);
+    border: 1px solid rgba(255, 255, 255, 0.2);
+  `;
+  
+  // Add chat animation keyframes
+  if (!document.querySelector('#chat-keyframes')) {
+    const style = document.createElement('style');
+    style.id = 'chat-keyframes';
+    style.textContent = `
+      @keyframes chatSlideIn {
+        0% { 
+          opacity: 0; 
+          transform: translate(-50%, -50%) scale(0.9);
+        }
+        100% { 
+          opacity: 1; 
+          transform: translate(-50%, -50%) scale(1);
+        }
+      }
+      
+      @keyframes messageSlideIn {
+        0% { 
+          opacity: 0; 
+          transform: translateY(10px);
+        }
+        100% { 
+          opacity: 1; 
+          transform: translateY(0);
+        }
+      }
+      
+      @keyframes voiceRecording {
+        0%, 100% { transform: scale(1); background: #ff6b6b; }
+        50% { transform: scale(1.1); background: #ff5252; }
+      }
+    `;
+    document.head.appendChild(style);
+  }
+  
+  // Style the chat container
+  const container = chatInterface.querySelector('.chat-container');
+  container.style.cssText = `
+    height: 100%;
+    display: flex;
+    flex-direction: column;
+    overflow: hidden;
+  `;
+  
+  // Style the chat header
+  const header = chatInterface.querySelector('.chat-header');
+  header.style.cssText = `
+    padding: 16px 20px;
+    background: rgba(255, 255, 255, 0.1);
+    backdrop-filter: blur(10px);
+    border-bottom: 1px solid rgba(255, 255, 255, 0.2);
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+    border-radius: 20px 20px 0 0;
+  `;
+  
+  const title = chatInterface.querySelector('.chat-title');
+  title.style.cssText = `
+    font-size: 16px;
+    font-weight: 600;
+    color: white;
+    display: flex;
+    align-items: center;
+    gap: 8px;
+  `;
+  
+  const closeBtn = chatInterface.querySelector('#chat-close-btn');
+  closeBtn.style.cssText = `
+    background: rgba(255, 255, 255, 0.2);
+    border: none;
+    color: white;
+    width: 32px;
+    height: 32px;
+    border-radius: 50%;
+    cursor: pointer;
+    font-size: 18px;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    transition: all 0.2s ease;
+  `;
+  
+  // Style the messages container
+  const messages = chatInterface.querySelector('#chat-messages');
+  messages.style.cssText = `
+    flex: 1;
+    overflow-y: auto;
+    padding: 16px;
+    display: flex;
+    flex-direction: column;
+    gap: 12px;
+  `;
+  
+  // Style the input container
+  const inputContainer = chatInterface.querySelector('.chat-input-container');
+  inputContainer.style.cssText = `
+    padding: 16px 20px;
+    background: rgba(255, 255, 255, 0.1);
+    backdrop-filter: blur(10px);
+    border-top: 1px solid rgba(255, 255, 255, 0.2);
+    border-radius: 0 0 20px 20px;
+  `;
+  
+  const inputWrapper = chatInterface.querySelector('.input-wrapper');
+  inputWrapper.style.cssText = `
+    display: flex;
+    gap: 8px;
+    align-items: center;
+  `;
+  
+  const input = chatInterface.querySelector('#chat-input');
+  input.style.cssText = `
+    flex: 1;
+    padding: 12px 16px;
+    border: 2px solid rgba(255, 255, 255, 0.2);
+    border-radius: 12px;
+    background: rgba(255, 255, 255, 0.9);
+    color: #333;
+    font-size: 14px;
+    font-family: inherit;
+    outline: none;
+    transition: all 0.2s ease;
+  `;
+  
+  const voiceBtn = chatInterface.querySelector('#voice-btn');
+  voiceBtn.style.cssText = `
+    width: 44px;
+    height: 44px;
+    border: none;
+    border-radius: 12px;
+    background: rgba(255, 255, 255, 0.15);
+    color: white;
+    cursor: pointer;
+    font-size: 16px;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    transition: all 0.2s ease;
+    border: 1px solid rgba(255, 255, 255, 0.2);
+  `;
+  
+  const sendBtn = chatInterface.querySelector('#send-btn');
+  sendBtn.style.cssText = `
+    width: 44px;
+    height: 44px;
+    border: none;
+    border-radius: 12px;
+    background: rgba(255, 255, 255, 0.2);
+    color: white;
+    cursor: pointer;
+    font-size: 16px;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    transition: all 0.2s ease;
+    border: 1px solid rgba(255, 255, 255, 0.3);
+  `;
+  
+  // Add message styles
+  const messageStyles = document.createElement('style');
+  messageStyles.textContent = `
+    .ai-message, .user-message {
+      display: flex;
+      gap: 12px;
+      align-items: flex-start;
+      animation: messageSlideIn 0.3s ease-out;
+    }
+    
+    .user-message {
+      flex-direction: row-reverse;
+    }
+    
+    .ai-avatar, .user-avatar {
+      width: 32px;
+      height: 32px;
+      border-radius: 50%;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      font-size: 16px;
+      flex-shrink: 0;
+    }
+    
+    .ai-avatar {
+      background: rgba(255, 255, 255, 0.2);
+    }
+    
+    .user-avatar {
+      background: rgba(255, 255, 255, 0.3);
+    }
+    
+    .message-content {
+      background: rgba(255, 255, 255, 0.15);
+      padding: 12px 16px;
+      border-radius: 16px;
+      color: white;
+      font-size: 14px;
+      line-height: 1.4;
+      max-width: 280px;
+      backdrop-filter: blur(10px);
+      border: 1px solid rgba(255, 255, 255, 0.1);
+    }
+    
+    .user-message .message-content {
+      background: rgba(255, 255, 255, 0.25);
+    }
+    
+    .message-content p {
+      margin: 0 0 8px 0;
+    }
+    
+    .message-content p:last-child {
+      margin-bottom: 0;
+    }
+    
+    .message-content small {
+      opacity: 0.8;
+    }
+    
+    .typing-indicator {
+      display: flex;
+      align-items: center;
+      gap: 4px;
+      padding: 8px 0;
+    }
+    
+    .typing-dot {
+      width: 6px;
+      height: 6px;
+      background: rgba(255, 255, 255, 0.6);
+      border-radius: 50%;
+      animation: typingBounce 1.4s ease-in-out infinite;
+    }
+    
+    .typing-dot:nth-child(2) { animation-delay: 0.2s; }
+    .typing-dot:nth-child(3) { animation-delay: 0.4s; }
+    
+    @keyframes typingBounce {
+      0%, 60%, 100% { transform: translateY(0); }
+      30% { transform: translateY(-10px); }
+    }
+    
+    .welcome-message {
+      margin-bottom: 8px;
+    }
+    
+    #chat-messages::-webkit-scrollbar {
+      width: 6px;
+    }
+    
+    #chat-messages::-webkit-scrollbar-track {
+      background: rgba(255, 255, 255, 0.1);
+      border-radius: 3px;
+    }
+    
+    #chat-messages::-webkit-scrollbar-thumb {
+      background: rgba(255, 255, 255, 0.3);
+      border-radius: 3px;
+    }
+    
+    #chat-messages::-webkit-scrollbar-thumb:hover {
+      background: rgba(255, 255, 255, 0.5);
+    }
+  `;
+  document.head.appendChild(messageStyles);
+    document.body.appendChild(chatInterface);
+  return chatInterface;
+}
+
+// Open chat interface
+function openChatInterface(selectedText = '') {
+  hidePopup(); // Hide the selection popup
+  
+  if (!chatInterface) {
+    chatInterface = createChatInterface();
+    setupChatEventListeners();
+  }
+  
+  chatInterface.style.display = 'block';
+  
+  // Auto-focus the input
+  setTimeout(() => {
+    const input = chatInterface.querySelector('#chat-input');
+    if (input) {
+      input.focus();
+      // If there's selected text, pre-fill with a question about it
+      if (selectedText.trim()) {
+        input.value = `What can you tell me about: "${selectedText.substring(0, 100)}${selectedText.length > 100 ? '...' : ''}"`;
+        input.setSelectionRange(input.value.length, input.value.length);
+      }
+    }
+  }, 100);
+}
+
+// Setup chat event listeners
+function setupChatEventListeners() {
+  if (!chatInterface) return;
+  
+  const closeBtn = chatInterface.querySelector('#chat-close-btn');
+  const sendBtn = chatInterface.querySelector('#send-btn');
+  const voiceBtn = chatInterface.querySelector('#voice-btn');
+  const input = chatInterface.querySelector('#chat-input');
+  
+  // Close chat
+  closeBtn.addEventListener('click', () => {
+    chatInterface.style.display = 'none';
+    stopVoiceRecognition();
+  });
+  
+  // Send message
+  sendBtn.addEventListener('click', () => {
+    sendChatMessage();
+  });
+  
+  // Enter key to send
+  input.addEventListener('keydown', (e) => {
+    if (e.key === 'Enter' && !e.shiftKey) {
+      e.preventDefault();
+      sendChatMessage();
+    }
+  });
+  
+  // Voice input
+  voiceBtn.addEventListener('click', () => {
+    toggleVoiceRecognition();
+  });
+  
+  // Input focus effects
+  input.addEventListener('focus', () => {
+    input.style.borderColor = 'rgba(255, 255, 255, 0.6)';
+    input.style.boxShadow = '0 0 20px rgba(255, 255, 255, 0.2)';
+  });
+  
+  input.addEventListener('blur', () => {
+    input.style.borderColor = 'rgba(255, 255, 255, 0.2)';
+    input.style.boxShadow = 'none';
+  });
+  
+  // Button hover effects
+  [sendBtn, voiceBtn, closeBtn].forEach(btn => {
+    btn.addEventListener('mouseenter', () => {
+      btn.style.background = 'rgba(255, 255, 255, 0.3)';
+      btn.style.transform = 'scale(1.05)';
+    });
+    
+    btn.addEventListener('mouseleave', () => {
+      if (btn === closeBtn) {
+        btn.style.background = 'rgba(255, 255, 255, 0.2)';
+      } else {
+        btn.style.background = btn === sendBtn ? 'rgba(255, 255, 255, 0.2)' : 'rgba(255, 255, 255, 0.15)';
+      }
+      btn.style.transform = 'scale(1)';
+    });
+  });
+}
+
+// Send chat message
+async function sendChatMessage() {
+  const input = chatInterface.querySelector('#chat-input');
+  const message = input.value.trim();
+  
+  if (!message) return;
+  
+  // Clear input
+  input.value = '';
+  
+  // Add user message to chat
+  addMessageToChat(message, 'user');
+  
+  // Show typing indicator
+  showTypingIndicator();
+  
+  try {
+    // Send to AI
+    const response = await fetch("https://text.pollinations.ai/prompt/" + encodeURIComponent(message));
+    
+    if (!response.ok) {
+      throw new Error('Failed to get AI response');
+    }
+    
+    const aiResponse = await response.text();
+    
+    // Remove typing indicator and add AI response
+    hideTypingIndicator();
+    addMessageToChat(aiResponse, 'ai');
+    
+  } catch (error) {
+    console.error('Chat AI error:', error);
+    hideTypingIndicator();
+    addMessageToChat('Sorry, I encountered an error. Please try again.', 'ai');
+  }
+}
+
+// Add message to chat
+function addMessageToChat(message, sender) {
+  const messagesContainer = chatInterface.querySelector('#chat-messages');
+  const messageDiv = document.createElement('div');
+  
+  if (sender === 'user') {
+    messageDiv.className = 'user-message';
+    messageDiv.innerHTML = `
+      <span class="user-avatar">👤</span>
+      <div class="message-content">
+        <p>${escapeHtml(message)}</p>
+      </div>
+    `;
+  } else {
+    messageDiv.className = 'ai-message';
+    messageDiv.innerHTML = `
+      <span class="ai-avatar">🤖</span>
+      <div class="message-content">
+        <p>${escapeHtml(message)}</p>
+      </div>
+    `;
+  }
+  
+  messagesContainer.appendChild(messageDiv);
+  
+  // Scroll to bottom
+  messagesContainer.scrollTop = messagesContainer.scrollHeight;
+}
+
+// Show typing indicator
+function showTypingIndicator() {
+  const messagesContainer = chatInterface.querySelector('#chat-messages');
+  const typingDiv = document.createElement('div');
+  typingDiv.id = 'typing-indicator';
+  typingDiv.className = 'ai-message';
+  typingDiv.innerHTML = `
+    <span class="ai-avatar">🤖</span>
+    <div class="message-content">
+      <div class="typing-indicator">
+        <div class="typing-dot"></div>
+        <div class="typing-dot"></div>
+        <div class="typing-dot"></div>
+      </div>
+    </div>
+  `;
+  
+  messagesContainer.appendChild(typingDiv);
+  messagesContainer.scrollTop = messagesContainer.scrollHeight;
+}
+
+// Hide typing indicator
+function hideTypingIndicator() {
+  const typingIndicator = chatInterface.querySelector('#typing-indicator');
+  if (typingIndicator) {
+    typingIndicator.remove();
+  }
+}
+
+// Initialize speech recognition
+function initSpeechRecognition() {
+  if ('webkitSpeechRecognition' in window || 'SpeechRecognition' in window) {
+    const SpeechRecognition = window.SpeechRecognition || window.webkitSpeechRecognition;
+    speechRecognition = new SpeechRecognition();
+    
+    speechRecognition.continuous = false;
+    speechRecognition.interimResults = false;
+    speechRecognition.lang = 'en-US';
+    
+    speechRecognition.onstart = () => {
+      const voiceBtn = chatInterface?.querySelector('#voice-btn');
+      if (voiceBtn) {
+        voiceBtn.style.animation = 'voiceRecording 1s infinite';
+        voiceBtn.style.background = '#ff6b6b';
+        voiceBtn.textContent = '🔴';
+      }
+    };
+    
+    speechRecognition.onresult = (event) => {
+      const transcript = event.results[0][0].transcript;
+      const input = chatInterface?.querySelector('#chat-input');
+      if (input) {
+        input.value = transcript;
+        input.focus();
+      }
+    };
+    
+    speechRecognition.onend = () => {
+      const voiceBtn = chatInterface?.querySelector('#voice-btn');
+      if (voiceBtn) {
+        voiceBtn.style.animation = '';
+        voiceBtn.style.background = 'rgba(255, 255, 255, 0.15)';
+        voiceBtn.textContent = '🎤';
+      }
+    };
+    
+    speechRecognition.onerror = (event) => {
+      console.error('Speech recognition error:', event.error);
+      const voiceBtn = chatInterface?.querySelector('#voice-btn');
+      if (voiceBtn) {
+        voiceBtn.style.animation = '';
+        voiceBtn.style.background = 'rgba(255, 255, 255, 0.15)';
+        voiceBtn.textContent = '🎤';
+      }
+    };
+  }
+}
+
+// Toggle voice recognition
+function toggleVoiceRecognition() {
+  if (!speechRecognition) {
+    initSpeechRecognition();
+  }
+  
+  if (!speechRecognition) {
+    // Speech recognition not supported
+    addMessageToChat('Voice input is not supported in your browser.', 'ai');
+    return;
+  }
+  
+  try {
+    if (speechRecognition.recognition && speechRecognition.recognition.readyState === 'recording') {
+      speechRecognition.stop();
+    } else {
+      speechRecognition.start();
+    }
+  } catch (error) {
+    speechRecognition.start();
+  }
+}
+
+// Stop voice recognition
+function stopVoiceRecognition() {
+  if (speechRecognition) {
+    try {
+      speechRecognition.stop();
+    } catch (error) {
+      // Ignore errors when stopping
+    }
+  }
+}
+
+// Escape HTML to prevent XSS
+function escapeHtml(text) {
+  const div = document.createElement('div');
+  div.textContent = text;
+  return div.innerHTML;
 }
 
 // Get currently selected text (helper function)
@@ -253,9 +854,7 @@ function showPopup(selectedText) {
       e.stopPropagation();
       const currentSelectedText = getCurrentSelectedText();
       handleButtonClick('Make this text more professional: ', currentSelectedText);
-    });
-    
-    document.getElementById('summary-btn').addEventListener('click', (e) => {
+    });    document.getElementById('summary-btn').addEventListener('click', (e) => {
       e.stopPropagation();
       const currentSelectedText = getCurrentSelectedText();
       handleButtonClick('Summarize this text: ', currentSelectedText);
@@ -701,6 +1300,24 @@ document.addEventListener('mousedown', (e) => {
 // Hide popup when scrolling
 document.addEventListener('scroll', () => {
   hidePopup();
+});
+
+// Global keyboard shortcuts
+document.addEventListener('keydown', (e) => {
+  if (e.key === 'Escape') {
+    hidePopup();
+    // Also close chat interface if open
+    if (chatInterface && chatInterface.style.display === 'block') {
+      chatInterface.style.display = 'none';
+      stopVoiceRecognition();
+    }
+  }
+  
+  // CTRL+I to open chat interface
+  if (e.ctrlKey && e.key === 'i') {
+    e.preventDefault();
+    openChatInterface();
+  }
 });
 
 })(); // End of IIFE
